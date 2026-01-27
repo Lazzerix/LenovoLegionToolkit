@@ -29,9 +29,6 @@ public partial class SensorsControlV2
     private readonly SensorsControlSettings _sensorsControlSettings = IoCContainer.Resolve<SensorsControlSettings>();
     private readonly ApplicationSettings _applicationSettings = IoCContainer.Resolve<ApplicationSettings>();
     private readonly DashboardSettings _dashboardSettings = IoCContainer.Resolve<DashboardSettings>();
-    private CancellationTokenSource? _cts;
-    private Task? _refreshTask;
-    private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly Lock _updateLock = new();
     private readonly Task<string> _cpuNameTask;
     private Task<string>? _gpuNameTask;
@@ -134,12 +131,16 @@ public partial class SensorsControlV2
                 _dashboardSettings.Store.SensorsRefreshIntervalSeconds = interval;
                 _dashboardSettings.SynchronizeStore();
                 InitializeContextMenu();
+                if (IsVisible)
+                {
+                    _sensorsGroupControllers.Start(this, TimeSpan.FromSeconds(interval));
+                }
             };
             ContextMenu.Items.Add(item);
         }
     }
 
-    private async void SensorsControl_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    private void SensorsControl_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (IsVisible)
         {
@@ -153,106 +154,69 @@ public partial class SensorsControlV2
             }
 
             UpdateControlsVisibility();
-            await StartRefreshLoop();
+            _sensorsGroupControllers.SensorsUpdated += OnSensorsUpdated;
+            _sensorsGroupControllers.Start(this, TimeSpan.FromSeconds(_dashboardSettings.Store.SensorsRefreshIntervalSeconds));
         }
         else
         {
-            await StopRefreshLoop();
+            _sensorsGroupControllers.Stop(this);
+            _sensorsGroupControllers.SensorsUpdated -= OnSensorsUpdated;
         }
     }
 
-    private async Task StartRefreshLoop()
+    private async void OnSensorsUpdated(object? sender, EventArgs e)
     {
-        if (!await _refreshLock.WaitAsync(0)) return;
         try
         {
-            _cts?.Cancel();
-            _cts = new CancellationTokenSource();
-            var token = _cts.Token;
-
-            try
+            var dataTask = Task.Run(async () =>
             {
-                await _controller.PrepareAsync().ConfigureAwait(false);
-            } 
-            catch { /* Ignore */ }
+                try { return await _controller.GetDataAsync().ConfigureAwait(false); }
+                catch { return default(SensorsData); }
+            });
 
-            _refreshTask = Task.Run(async () =>
-            {
-                while (!token.IsCancellationRequested)
-                {
-                    try
-                    {
-                        await _sensorsGroupControllers.UpdateAsync();
+            var gpuNameTask = GetProcessedGpuName();
+            var cpuUsageTask = _sensorsGroupControllers.GetCpuUsageAsync();
+            var cpuTempTask = _sensorsGroupControllers.GetCpuTemperatureAsync();
+            var cpuClockTask = _sensorsGroupControllers.IsHybrid
+                ? _sensorsGroupControllers.GetCpuPCoreClockAsync()
+                : _sensorsGroupControllers.GetCpuCoreClockAsync();
+            var cpuPowerTask = _sensorsGroupControllers.GetCpuPowerAsync();
 
-                        var dataTask = Task.Run(async () =>
-                        {
-                            try { return await _controller.GetDataAsync().ConfigureAwait(false); }
-                            catch { return default(SensorsData); }
-                        }, token);
+            var gpuUsageTask = _sensorsGroupControllers.GetGpuUsageAsync();
+            var gpuTempTask = _sensorsGroupControllers.GetGpuTemperatureAsync();
+            var gpuClockTask = _sensorsGroupControllers.GetGpuCoreClockAsync();
+            var gpuPowerTask = _sensorsGroupControllers.GetGpuPowerAsync();
+            var gpuVramTask = _sensorsGroupControllers.GetGpuVramTemperatureAsync();
 
-                        var gpuNameTask = GetProcessedGpuName();
-                        var cpuUsageTask = _sensorsGroupControllers.GetCpuUsageAsync();
-                        var cpuTempTask = _sensorsGroupControllers.GetCpuTemperatureAsync();
-                        var cpuClockTask = _sensorsGroupControllers.IsHybrid
-                            ? _sensorsGroupControllers.GetCpuPCoreClockAsync()
-                            : _sensorsGroupControllers.GetCpuCoreClockAsync();
-                        var cpuPowerTask = _sensorsGroupControllers.GetCpuPowerAsync();
+            var diskTemperaturesTask = _sensorsGroupControllers.GetSsdTemperaturesAsync();
+            var memoryUsageTask = _sensorsGroupControllers.GetMemoryUsageAsync();
+            var memoryTemperaturesTask = _sensorsGroupControllers.GetHighestMemoryTemperatureAsync();
 
-                        var gpuUsageTask = _sensorsGroupControllers.GetGpuUsageAsync();
-                        var gpuTempTask = _sensorsGroupControllers.GetGpuTemperatureAsync();
-                        var gpuClockTask = _sensorsGroupControllers.GetGpuCoreClockAsync();
-                        var gpuPowerTask = _sensorsGroupControllers.GetGpuPowerAsync();
-                        var gpuVramTask = _sensorsGroupControllers.GetGpuVramTemperatureAsync();
+            var batteryInfoTask = Task.Run(Battery.GetBatteryInformation);
 
-                        var diskTemperaturesTask = _sensorsGroupControllers.GetSsdTemperaturesAsync();
-                        var memoryUsageTask = _sensorsGroupControllers.GetMemoryUsageAsync();
-                        var memoryTemperaturesTask = _sensorsGroupControllers.GetHighestMemoryTemperatureAsync();
+            await Task.WhenAll(
+                dataTask,
+                cpuUsageTask, gpuNameTask, cpuTempTask, cpuClockTask, cpuPowerTask,
+                gpuUsageTask, gpuTempTask, gpuClockTask, gpuPowerTask, gpuVramTask,
+                diskTemperaturesTask, memoryUsageTask, memoryTemperaturesTask,
+                batteryInfoTask
+            ).ConfigureAwait(false);
 
-                        var batteryInfoTask = Task.Run(Battery.GetBatteryInformation, token);
+            _gpuNameTask = gpuNameTask;
 
-                        await Task.WhenAll(
-                            dataTask,
-                            cpuUsageTask, gpuNameTask, cpuTempTask, cpuClockTask, cpuPowerTask,
-                            gpuUsageTask, gpuTempTask, gpuClockTask, gpuPowerTask, gpuVramTask,
-                            diskTemperaturesTask, memoryUsageTask, memoryTemperaturesTask,
-                            batteryInfoTask
-                        ).ConfigureAwait(false);
-
-                        _gpuNameTask = gpuNameTask;
-
-                        await Dispatcher.BeginInvoke(() => UpdateAllSensorValuesV2(
-                            dataTask.Result,
-                            cpuUsageTask.Result, cpuTempTask.Result, cpuClockTask.Result, cpuPowerTask.Result,
-                            gpuUsageTask.Result, gpuTempTask.Result, gpuClockTask.Result, gpuPowerTask.Result, gpuVramTask.Result,
-                            diskTemperaturesTask.Result, memoryUsageTask.Result, memoryTemperaturesTask.Result,
-                            batteryInfoTask.Result
-                        ), DispatcherPriority.Background);
-
-                        await Task.Delay(TimeSpan.FromSeconds(_dashboardSettings.Store.SensorsRefreshIntervalSeconds), token);
-                    }
-                    catch (OperationCanceledException) { }
-                    catch (Exception ex)
-                    {
-                        Log.Instance.Trace($"Sensor refresh failed: {ex}");
-                        await Dispatcher.BeginInvoke(ClearAllSensorValues);
-                    }
-                }
-            }, token);
+            await Dispatcher.BeginInvoke(() => UpdateAllSensorValuesV2(
+                dataTask.Result,
+                cpuUsageTask.Result, cpuTempTask.Result, cpuClockTask.Result, cpuPowerTask.Result,
+                gpuUsageTask.Result, gpuTempTask.Result, gpuClockTask.Result, gpuPowerTask.Result, gpuVramTask.Result,
+                diskTemperaturesTask.Result, memoryUsageTask.Result, memoryTemperaturesTask.Result,
+                batteryInfoTask.Result
+            ), DispatcherPriority.Background);
         }
-        finally
+        catch (Exception ex)
         {
-            _refreshLock.Release();
+            Log.Instance.Trace($"Sensor refresh failed: {ex}");
+            await Dispatcher.BeginInvoke(ClearAllSensorValues);
         }
-    }
-
-    private async Task StopRefreshLoop()
-    {
-        if (_cts is not null)
-            await _cts.CancelAsync();
-        _cts = null;
-        if (_refreshTask is not null)
-            await _refreshTask;
-        _refreshTask = null;
     }
 
     private void ClearAllSensorValues()

@@ -31,7 +31,6 @@ public partial class StatusWindow
     private const int UI_UPDATE_THROTTLE_MS = 100;
     private const int MAX_RETRY_COUNT = 3;
     private const int RETRY_DELAY_MS = 1000;
-    private int _currentRetryCount;
 
     private readonly PowerModeFeature _powerModeFeature = IoCContainer.Resolve<PowerModeFeature>();
     private readonly ITSModeFeature _itsModeFeature = IoCContainer.Resolve<ITSModeFeature>();
@@ -56,7 +55,11 @@ public partial class StatusWindow
         bool hasUpdate,
         SensorsData? sensorData = null,
         double cpuPower = -1,
-        double gpuPower = -1)
+        double gpuPower = -1,
+        double cpuClock = -1,
+        double cpuTemp = -1,
+        double gpuClock = -1,
+        double gpuTemp = -1)
     {
         public PowerModeState? PowerModeState { get; } = powerModeState;
         public ITSMode? ITSMode { get; } = itsMode;
@@ -68,6 +71,10 @@ public partial class StatusWindow
         public SensorsData? SensorsData { get; } = sensorData;
         public double CpuPower { get; } = cpuPower;
         public double GpuPower { get; } = gpuPower;
+        public double CpuClock { get; } = cpuClock;
+        public double CpuTemp { get; } = cpuTemp;
+        public double GpuClock { get; } = gpuClock;
+        public double GpuTemp { get; } = gpuTemp;
     }
 
     public static async Task<StatusWindow> CreateAsync()
@@ -156,14 +163,41 @@ public partial class StatusWindow
     {
         MoveBottomRightEdgeOfWindowToMousePosition();
         _machineInfo ??= await Compatibility.GetMachineInformationAsync().ConfigureAwait(false);
-
-        var token = _cancellationTokenSource.Token;
-        if (_settings.Store.UseNewSensorDashboard) _ = Task.Run(async () => await TheRing(token), token);
     }
 
     private void StatusWindow_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        if (!IsVisible) _cancellationTokenSource.Cancel();
+        if (IsVisible)
+        {
+            _sensorsGroupController.SensorsUpdated += OnSensorsUpdated;
+            _sensorsGroupController.Start(this, TimeSpan.FromSeconds(_settings.Store.FloatingGadgetsRefreshInterval));
+        }
+        else
+        {
+            _sensorsGroupController.Stop(this);
+            _sensorsGroupController.SensorsUpdated -= OnSensorsUpdated;
+            _cancellationTokenSource.Cancel();
+        }
+    }
+
+    private async void OnSensorsUpdated(object? sender, EventArgs e)
+    {
+        var token = _cancellationTokenSource.Token;
+        try
+        {
+            var data = await GetStatusWindowDataAsync(token);
+            if (token.IsCancellationRequested) return;
+
+            if ((DateTime.Now - _lastUpdate).TotalMilliseconds >= UI_UPDATE_THROTTLE_MS)
+            {
+                _lastUpdate = DateTime.Now;
+                await Dispatcher.InvokeAsync(() => ApplyDataToUI(data), System.Windows.Threading.DispatcherPriority.Normal, token);
+            }
+        }
+        catch (Exception ex)
+        {
+             Log.Instance.Trace($"StatusWindow update failed: {ex}");
+        }
     }
 
     private async Task<StatusWindowData> GetStatusWindowDataAsync(CancellationToken token, bool skipRetry = false)
@@ -174,7 +208,10 @@ public partial class StatusWindow
 
         PowerModeState? state = null; ITSMode? mode = null; string? godModePresetName = null;
         GPUStatus? gpuStatus = null; BatteryInformation? batteryInfo = null; BatteryState? batteryState = null;
-        bool hasUpdate = false; SensorsData? sensorsData = null; double cpuPower = -1; double gpuPower = -1;
+        bool hasUpdate = false; SensorsData? sensorsData = null;
+        double cpuPower = -1; double gpuPower = -1;
+        double cpuClock = -1; double cpuTemp = -1;
+        double gpuClock = -1; double gpuTemp = -1;
 
         tasks.Add(Task.Run(async () => {
             try
@@ -211,54 +248,24 @@ public partial class StatusWindow
                 
                 sensorsData = await _sensorsController.GetDataAsync().WaitAsync(token);
             }
+            // SGC data - assume accessed via getters which return cached values from Producer Loop
             if (await _sensorsGroupController.IsSupportedAsync().WaitAsync(token) is LibreHardwareMonitorInitialState.Success or LibreHardwareMonitorInitialState.Initialized)
             {
-                await _sensorsGroupController.UpdateAsync().WaitAsync(token);
+                // Do NOT call UpdateAsync here, as it's driven by Producer
                 cpuPower = await _sensorsGroupController.GetCpuPowerAsync().WaitAsync(token);
                 gpuPower = await _sensorsGroupController.GetGpuPowerAsync().WaitAsync(token);
-                if (!skipRetry && (cpuPower <= 0 || (gpuStatus?.State == GPUState.Active && gpuPower <= 0)))
-                {
-                    for (int i = 0; i < MAX_RETRY_COUNT; i++)
-                    {
-                        await Task.Delay(RETRY_DELAY_MS, token);
-                        await _sensorsGroupController.UpdateAsync().WaitAsync(token);
-                        cpuPower = await _sensorsGroupController.GetCpuPowerAsync().WaitAsync(token);
-                        gpuPower = await _sensorsGroupController.GetGpuPowerAsync().WaitAsync(token);
-                        if (cpuPower > 0 && (gpuStatus?.State != GPUState.Active || gpuPower > 0)) break;
-                    }
-                }
+                cpuClock = await _sensorsGroupController.GetCpuCoreClockAsync().WaitAsync(token);
+                cpuTemp = await _sensorsGroupController.GetCpuTemperatureAsync().WaitAsync(token);
+                gpuClock = await _sensorsGroupController.GetGpuCoreClockAsync().WaitAsync(token);
+                gpuTemp = await _sensorsGroupController.GetGpuTemperatureAsync().WaitAsync(token);
             }
         }
         catch { /* Ignore */ }
 
-        return new(state, mode, godModePresetName, gpuStatus, batteryInfo, batteryState, hasUpdate, sensorsData, cpuPower, gpuPower);
+        return new(state, mode, godModePresetName, gpuStatus, batteryInfo, batteryState, hasUpdate, sensorsData, cpuPower, gpuPower, cpuClock, cpuTemp, gpuClock, gpuTemp);
     }
 
-    private async Task TheRing(CancellationToken token)
-    {
-        await _refreshLock.WaitAsync(token);
-        try
-        {
-            while (!token.IsCancellationRequested)
-            {
-                try
-                {
-                    var data = await GetStatusWindowDataAsync(token);
-                    token.ThrowIfCancellationRequested();
-                    if ((DateTime.Now - _lastUpdate).TotalMilliseconds >= UI_UPDATE_THROTTLE_MS)
-                    {
-                        _lastUpdate = DateTime.Now;
-                        await Dispatcher.InvokeAsync(() => ApplyDataToUI(data), System.Windows.Threading.DispatcherPriority.Normal, token);
-                    }
-                    _currentRetryCount = 0;
-                    await Task.Delay(TimeSpan.FromSeconds(_settings.Store.FloatingGadgetsRefreshInterval), token);
-                }
-                catch (OperationCanceledException) { break; }
-                catch { if (++_currentRetryCount < MAX_RETRY_COUNT) { await Task.Delay(RETRY_DELAY_MS, token); continue; } await Task.Delay(TimeSpan.FromSeconds(_settings.Store.FloatingGadgetsRefreshInterval), token); }
-            }
-        }
-        finally { _refreshLock.Release(); }
-    }
+
 
     private void ApplyDataToUI(StatusWindowData data)
     {
@@ -269,7 +276,7 @@ public partial class StatusWindow
 
         if (useSensors)
         {
-            UpdateFreqAndTemp(_cpuFreqAndTempLabel, data.SensorsData?.CPU.CoreClock ?? -1, data.SensorsData?.CPU.Temperature ?? -1);
+            UpdateFreqAndTemp(_cpuFreqAndTempLabel, data.CpuClock, data.CpuTemp);
             UpdateFanAndPower(_cpuFanAndPowerLabel, data.SensorsData?.CPU.FanSpeed ?? -1, data.CpuPower);
             // Use cached controller type to avoid blocking UI thread
             if (_cachedControllerType == typeof(SensorsControllerV4) ||
@@ -284,7 +291,7 @@ public partial class StatusWindow
             _gpuPowerStateValueLabel.Content = data.GPUStatus.Value.PerformanceState ?? "-";
             if (useSensors && data.GPUStatus.Value.State != GPUState.PoweredOff)
             {
-                UpdateFreqAndTemp(_gpuFreqAndTempLabel, data.SensorsData?.GPU.CoreClock ?? -1, data.SensorsData?.GPU.Temperature ?? -1);
+                UpdateFreqAndTemp(_gpuFreqAndTempLabel, data.GpuClock, data.GpuTemp);
                 UpdateFanAndPower(_gpuFanAndPowerLabel, data.SensorsData?.GPU.FanSpeed ?? -1, data.GpuPower);
             }
         }

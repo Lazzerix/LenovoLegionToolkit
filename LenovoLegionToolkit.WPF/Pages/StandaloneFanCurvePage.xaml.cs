@@ -19,11 +19,11 @@ public partial class StandaloneFanCurvePage : UiPage
     public StandaloneFanCurvePage()
     {
         InitializeComponent();
-        this.Loaded += TestPage_Loaded;
-        this.Unloaded += TestPage_Unloaded;
+        this.Loaded += StandaloneFanCurvePage_Loaded;
+        this.Unloaded += StandaloneFanCurvePage_Unloaded;
     }
 
-    private void TestPage_Loaded(object sender, RoutedEventArgs e)
+    private void StandaloneFanCurvePage_Loaded(object sender, RoutedEventArgs e)
     {
         try
         {
@@ -36,7 +36,7 @@ public partial class StandaloneFanCurvePage : UiPage
         }
     }
 
-    private void TestPage_Unloaded(object sender, RoutedEventArgs e)
+    private void StandaloneFanCurvePage_Unloaded(object sender, RoutedEventArgs e)
     {
         foreach (var ctrl in _fanCurveControls)
         {

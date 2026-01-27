@@ -136,17 +136,17 @@ public partial class App
 
             var initTasks = new List<Task>
             {
-                InitSensorsGroupControllerFeatureAsync(),
-                LogSoftwareStatusAsync(),
-                InitPowerModeFeatureAsync(),
-                InitITSModeFeatureAsync(),
-                InitBatteryFeatureAsync(),
-                InitRgbKeyboardControllerAsync(),
-                InitSpectrumKeyboardControllerAsync(),
-                InitGpuOverclockControllerAsync(),
-                InitHybridModeAsync(),
-                InitAutomationProcessorAsync(),
-                InitFanManagerExtension()
+                SafeInitAsync(InitSensorsGroupControllerFeatureAsync, "Sensors Group"),
+                SafeInitAsync(LogSoftwareStatusAsync, "Software Status"),
+                SafeInitAsync(InitPowerModeFeatureAsync, "Power Mode"),
+                SafeInitAsync(InitItsModeFeatureAsync, "ITS Mode"),
+                SafeInitAsync(InitBatteryFeatureAsync, "Battery Feature"),
+                SafeInitAsync(InitRgbKeyboardControllerAsync, "RGB Keyboard"),
+                SafeInitAsync(InitSpectrumKeyboardControllerAsync, "Spectrum Keyboard"),
+                SafeInitAsync(InitGpuOverclockControllerAsync, "GPU Overclock"),
+                SafeInitAsync(InitHybridModeAsync, "Hybrid Mode"),
+                SafeInitAsync(InitAutomationProcessorAsync, "Automation Processor"),
+                SafeInitAsync(InitFanManagerExtension, "Fan Manager")
             };
 
             await Task.WhenAll(initTasks);
@@ -220,6 +220,38 @@ public partial class App
             }
 
             HandleCriticalStartupError(ex);
+        }
+
+        return;
+
+        static async Task InitItsModeFeatureAsync()
+        {
+            try
+            {
+                var feature = IoCContainer.Resolve<ITSModeFeature>();
+                if (await feature.IsSupportedAsync()) await feature.SetStateAsync(await feature.GetStateAsync());
+            }
+            catch (Exception ex)
+            {
+                Log.Instance.Trace($"Couldn't ensure its mode state.", ex);
+            }
+        }
+
+        static async Task InitPowerModeFeatureAsync()
+        {
+            try
+            {
+                var feature = IoCContainer.Resolve<PowerModeFeature>();
+                if (await feature.IsSupportedAsync())
+                {
+                    await feature.EnsureGodModeStateIsAppliedAsync();
+                    await feature.EnsureCorrectWindowsPowerSettingsAreSetAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Instance.Trace($"InitPowerModeFeatureAsync failed.", ex);
+            }
         }
     }
 
@@ -654,36 +686,6 @@ public partial class App
         }
     }
 
-    private static async Task InitITSModeFeatureAsync()
-    {
-        try
-        {
-            var feature = IoCContainer.Resolve<ITSModeFeature>();
-            if (await feature.IsSupportedAsync()) await feature.SetStateAsync(await feature.GetStateAsync());
-        }
-        catch (Exception ex)
-        {
-            Log.Instance.Trace($"Couldn't ensure its mode state.", ex);
-        }
-    }
-
-    private static async Task InitPowerModeFeatureAsync()
-    {
-        try
-        {
-            var feature = IoCContainer.Resolve<PowerModeFeature>();
-            if (await feature.IsSupportedAsync())
-            {
-                await feature.EnsureGodModeStateIsAppliedAsync();
-                await feature.EnsureCorrectWindowsPowerSettingsAreSetAsync();
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Instance.Trace($"InitPowerModeFeatureAsync failed.", ex);
-        }
-    }
-
     private static async Task InitBatteryFeatureAsync()
     {
         try
@@ -852,6 +854,19 @@ public partial class App
 
         FloatingGadget = isUpper ? new FloatingGadgetUpper() : new FloatingGadget();
         FloatingGadget.Closed += (s, e) => FloatingGadget = null;
+    }
+
+    private async Task SafeInitAsync(Func<Task> action, string taskName)
+    {
+        try
+        {
+            await action();
+            Log.Instance.Trace($"{taskName} initialized successfully.");
+        }
+        catch (Exception ex)
+        {
+            Log.Instance.Trace($"{taskName} failed: {ex.Message}");
+        }
     }
 
     #endregion
