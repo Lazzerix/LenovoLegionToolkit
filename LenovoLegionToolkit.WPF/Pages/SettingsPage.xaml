@@ -297,6 +297,14 @@
                 <controls:CardHeaderControl Title="{x:Static resources:Resource.SettingsPage_ExcludeRefreshRates_Title}" Subtitle="{x:Static resources:Resource.SettingsPage_ExcludeRefreshRates_Message}" />
             </custom:CardAction.Content>
         </custom:CardAction>
+        <custom:CardAction
+            x:Name="_excludeProcessesCard"
+            Margin="0,0,0,8"
+            Click="ExcludeProcesses_Click">
+            <custom:CardAction.Content>
+                <controls:CardHeaderControl Title="{x:Static resources:Resource.SettingsPage_ExcludeProcesses_Title}" Subtitle="{x:Static resources:Resource.SettingsPage_ExcludeProcesses_Message}" />
+            </custom:CardAction.Content>
+        </custom:CardAction>
         <custom:CardControl Margin="0,0,0,8">
             <custom:CardControl.Header>
                 <controls:CardHeaderControl Title="{x:Static resources:Resource.SettingsPage_SynchronizeBrightnessToAllPowerPlans_Title}" Subtitle="{x:Static resources:Resource.SettingsPage_SynchronizeBrightnessToAllPowerPlans_Message}" />

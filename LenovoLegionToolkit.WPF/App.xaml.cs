@@ -136,6 +136,8 @@ public partial class App
 
             var initTasks = new List<Task>
             {
+                SafeInitAsync(InitAIControllerAsync, "AI Controller"),
+                SafeInitAsync(InitAutomationProcessorAsync, "Automation Processor"),
                 SafeInitAsync(InitSensorsGroupControllerFeatureAsync, "Sensors Group"),
                 SafeInitAsync(LogSoftwareStatusAsync, "Software Status"),
                 SafeInitAsync(InitPowerModeFeatureAsync, "Power Mode"),
@@ -145,7 +147,6 @@ public partial class App
                 SafeInitAsync(InitSpectrumKeyboardControllerAsync, "Spectrum Keyboard"),
                 SafeInitAsync(InitGpuOverclockControllerAsync, "GPU Overclock"),
                 SafeInitAsync(InitHybridModeAsync, "Hybrid Mode"),
-                SafeInitAsync(InitAutomationProcessorAsync, "Automation Processor"),
                 SafeInitAsync(InitFanManagerExtension, "Fan Manager")
             };
 
@@ -156,8 +157,7 @@ public partial class App
 
             var deferredInitTask = Task.Run(async () =>
             {
-                if (AppFlags.Instance.Debug) Console.WriteLine(@"[AsyncWorker] Starting AI/HWiNFO/IPC...");
-                await IoCContainer.Resolve<AIController>().StartIfNeededAsync();
+                if (AppFlags.Instance.Debug) Console.WriteLine(@"[AsyncWorker] Starting HWiNFO/IPC...");
                 await IoCContainer.Resolve<HWiNFOIntegration>().StartStopIfNeededAsync();
                 await IoCContainer.Resolve<IpcServer>().StartStopIfNeededAsync();
             });
@@ -253,7 +253,20 @@ public partial class App
                 Log.Instance.Trace($"InitPowerModeFeatureAsync failed.", ex);
             }
         }
+
+        static async Task InitAIControllerAsync()
+        {
+            try
+            {
+                await IoCContainer.Resolve<AIController>().StartIfNeededAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.Instance.Trace($"InitAIControllerAsync failed.", ex);
+            }
+        }
     }
+
 
     private void InitializeDebugConsole()
     {

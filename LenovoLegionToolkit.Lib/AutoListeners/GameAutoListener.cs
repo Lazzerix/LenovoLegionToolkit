@@ -5,7 +5,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using LenovoLegionToolkit.Lib.Extensions;
 using LenovoLegionToolkit.Lib.GameDetection;
+using LenovoLegionToolkit.Lib.Controllers;
 using LenovoLegionToolkit.Lib.Utils;
+using LenovoLegionToolkit.Lib.Settings;
 
 namespace LenovoLegionToolkit.Lib.AutoListeners;
 
@@ -36,15 +38,20 @@ public class GameAutoListener : AbstractAutoListener<GameAutoListener.ChangedEve
 
     private readonly GameConfigStoreDetector _gameConfigStoreDetector;
     private readonly EffectiveGameModeDetector _effectiveGameModeDetector;
+    private readonly GPUController _gpuController;
+    private readonly ApplicationSettings _settings;
 
     private readonly HashSet<ProcessInfo> _detectedGamePathsCache = [];
     private readonly HashSet<Process> _processCache = new(new ProcessEqualityComparer());
 
     private bool _lastState;
 
-    public GameAutoListener(InstanceStartedEventAutoAutoListener instanceStartedEventAutoAutoListener)
+    public GameAutoListener(InstanceStartedEventAutoAutoListener instanceStartedEventAutoAutoListener, GPUController gpuController, ApplicationSettings settings)
     {
+
         _instanceStartedEventAutoAutoListener = instanceStartedEventAutoAutoListener;
+        _gpuController = gpuController;
+        _settings = settings;
 
         _gameConfigStoreDetector = new GameConfigStoreDetector();
         _gameConfigStoreDetector.GamesDetected += GameConfigStoreDetectorGamesConfigStoreDetected;
@@ -55,11 +62,15 @@ public class GameAutoListener : AbstractAutoListener<GameAutoListener.ChangedEve
 
     protected override async Task StartAsync()
     {
+
         lock (Lock)
         {
             foreach (var gamePath in GameConfigStoreDetector.GetDetectedGamePaths())
                 _detectedGamePathsCache.Add(gamePath);
         }
+
+        await _gpuController.StartAsync().ConfigureAwait(false);
+        _gpuController.Refreshed += GpuController_Refreshed;
 
         await _gameConfigStoreDetector.StartAsync().ConfigureAwait(false);
         await _effectiveGameModeDetector.StartAsync().ConfigureAwait(false);
@@ -73,6 +84,8 @@ public class GameAutoListener : AbstractAutoListener<GameAutoListener.ChangedEve
 
         await _gameConfigStoreDetector.StopAsync().ConfigureAwait(false);
         await _effectiveGameModeDetector.StopAsync().ConfigureAwait(false);
+
+        _gpuController.Refreshed -= GpuController_Refreshed;
 
         lock (Lock)
         {
@@ -90,6 +103,38 @@ public class GameAutoListener : AbstractAutoListener<GameAutoListener.ChangedEve
         lock (Lock)
         {
             return _lastState;
+        }
+    }
+
+    private void GpuController_Refreshed(object? sender, GPUStatus e)
+    {
+        lock (Lock)
+        {
+
+
+            foreach (var process in e.Processes)
+            {
+                try
+                {
+                    if (process.HasExited)
+                        continue;
+
+                    var processName = process.ProcessName;
+                    
+                    if (IsBlacklisted(processName))
+                        continue;
+
+                    if (!_processCache.Contains(process))
+                    {
+                        Attach(process);
+                        _processCache.Add(process);
+                        RaiseChangedIfNeeded(true);
+                    }
+                }
+                catch (Exception)
+                {
+                }
+            }
         }
     }
 
@@ -183,12 +228,24 @@ public class GameAutoListener : AbstractAutoListener<GameAutoListener.ChangedEve
         }
     }
 
-    private static bool IsBlacklisted(string processName)
+    private bool IsBlacklisted(string processName)
     {
+        if (_settings.Store.ExcludedProcesses.Contains(processName, StringComparer.OrdinalIgnoreCase))
+            return true;
+        
         return processName.Equals("explorer", StringComparison.OrdinalIgnoreCase)
             || processName.Equals("LenovoLegionToolkit", StringComparison.OrdinalIgnoreCase)
             || processName.Equals("SearchUI", StringComparison.OrdinalIgnoreCase)
-            || processName.Equals("LockApp", StringComparison.OrdinalIgnoreCase);
+            || processName.Equals("LockApp", StringComparison.OrdinalIgnoreCase)
+            || processName.Equals("TextInputHost", StringComparison.OrdinalIgnoreCase)
+            || processName.Equals("ShellExperienceHost", StringComparison.OrdinalIgnoreCase)
+            || processName.Equals("StartMenuExperienceHost", StringComparison.OrdinalIgnoreCase)
+            || processName.Equals("SearchHost", StringComparison.OrdinalIgnoreCase)
+            || processName.Equals("dwm", StringComparison.OrdinalIgnoreCase)
+            || processName.Equals("csrss", StringComparison.OrdinalIgnoreCase)
+            || processName.Equals("WmiApSrv", StringComparison.OrdinalIgnoreCase)
+            || processName.Equals("HWiNFO64", StringComparison.OrdinalIgnoreCase)
+            || processName.Equals("HWiNFO32", StringComparison.OrdinalIgnoreCase);
     }
 
     private void InstanceStartedEventAutoAutoListener_Changed(object? sender, InstanceStartedEventAutoAutoListener.ChangedEventArgs e)

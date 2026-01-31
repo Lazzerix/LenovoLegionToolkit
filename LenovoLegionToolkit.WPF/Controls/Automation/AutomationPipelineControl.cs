@@ -103,6 +103,7 @@ public class AutomationPipelineControl : UserControl
         _supportedAutomationSteps = supportedAutomationSteps;
 
         Initialized += AutomationPipelineControl_Initialized;
+        OnChanged += (_, _) => RefreshValidationWarnings();
     }
 
     public AutomationPipeline CreateAutomationPipeline() => new()
@@ -130,12 +131,36 @@ public class AutomationPipelineControl : UserControl
         OnChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    private readonly TextBlock _validationWarningTextBlock = new()
+    {
+        Foreground = Brushes.Orange,
+        TextWrapping = TextWrapping.Wrap,
+        Margin = new(16, 0, 16, 8),
+        Visibility = Visibility.Collapsed
+    };
+
     public void SetIcon(SymbolRegular? icon)
     {
         AutomationPipeline.IconName = icon.HasValue ? Enum.GetName(icon.Value) : null;
         _cardExpander.Icon = GenerateIcon();
 
         OnChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void RefreshValidationWarnings()
+    {
+        var pipeline = CreateAutomationPipeline();
+        var warnings = pipeline.GetValidationWarnings().ToList();
+
+        if (warnings.Count > 0)
+        {
+            _validationWarningTextBlock.Text = string.Join("\n", warnings);
+            _validationWarningTextBlock.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            _validationWarningTextBlock.Visibility = Visibility.Collapsed;
+        }
     }
 
     private async void AutomationPipelineControl_Initialized(object? sender, EventArgs e)
@@ -183,7 +208,10 @@ public class AutomationPipelineControl : UserControl
         _buttonsStackPanel.Children.Add(_deletePipelineButton);
 
         _stackPanel.Children.Add(_stepsStackPanel);
+        _stackPanel.Children.Add(_validationWarningTextBlock);
         _stackPanel.Children.Add(_buttonsStackPanel);
+        
+        RefreshValidationWarnings();
 
         _cardExpander.Icon = GenerateIcon();
         _cardHeaderControl.Title = GenerateHeader();

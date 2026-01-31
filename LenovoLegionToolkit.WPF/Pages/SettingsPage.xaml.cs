@@ -225,6 +225,7 @@ public partial class SettingsPage
         _selectBackgroundImageButton.Visibility = Visibility.Visible;
         _clearBackgroundImageButton.Visibility = Visibility.Visible;
         _backgroundImageOpacitySlider.Visibility = Visibility.Visible;
+        _excludeProcessesCard.Visibility = Visibility.Visible;
 
         _isRefreshing = false;
     }
@@ -715,6 +716,15 @@ public partial class SettingsPage
             return;
 
         var window = new ExcludeRefreshRatesWindow { Owner = Window.GetWindow(this) };
+        window.ShowDialog();
+    }
+
+    private void ExcludeProcesses_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isRefreshing)
+            return;
+
+        var window = new ExcludeProcessesWindow { Owner = Window.GetWindow(this) };
         window.ShowDialog();
     }
 

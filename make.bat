@@ -6,8 +6,8 @@ SET VERSION=0.0.1
 SET VERSION=%1
 )
 
-REM Use pure batch commands to get the current date in YYYY-MM-DD format
-set "TIMESTAMP=%date:~0,4%-%date:~5,2%-%date:~8,2%"
+REM Use PowerShell to get the current date in YYYY-MM-DD format (locale independent)
+for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyy-MM-dd"') do set TIMESTAMP=%%i
 
 SET PATH=%PATH%;"C:\Program Files (x86)\Inno Setup 6"
 
