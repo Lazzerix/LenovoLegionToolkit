@@ -36,10 +36,17 @@ public abstract class AbstractAutomationStepControl : UserControl
 
     private readonly SymbolIcon _dragHandle = new()
     {
-        Symbol = SymbolRegular.GridDots24,
-        Margin = new(-8, 0, 8, 0),
+        Symbol = SymbolRegular.ReOrderDotsVertical24,
+        Margin = new(-8, 0, 0, 0),
         Cursor = System.Windows.Input.Cursors.SizeAll,
         Opacity = 0.5,
+    };
+
+    private readonly SymbolIcon _iconControl = new()
+    {
+        FontSize = 24,
+        Margin = new(4, 0, 12, 0),
+        VerticalAlignment = VerticalAlignment.Center,
     };
 
     private readonly Button _deleteButton = new()
@@ -54,8 +61,8 @@ public abstract class AbstractAutomationStepControl : UserControl
 
     public SymbolRegular Icon
     {
-        get => _cardControl.Icon;
-        set => _cardControl.Icon = value;
+        get => _iconControl.Symbol;
+        set => _iconControl.Symbol = value;
     }
 
     public string Title
@@ -125,14 +132,18 @@ public abstract class AbstractAutomationStepControl : UserControl
         
         var headerPanel = new Grid();
         headerPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        headerPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         headerPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         _dragHandle.VerticalAlignment = VerticalAlignment.Center;
         Grid.SetColumn(_dragHandle, 0);
         headerPanel.Children.Add(_dragHandle);
 
+        Grid.SetColumn(_iconControl, 1);
+        headerPanel.Children.Add(_iconControl);
+
         _cardHeaderControl.VerticalAlignment = VerticalAlignment.Center;
-        Grid.SetColumn(_cardHeaderControl, 1);
+        Grid.SetColumn(_cardHeaderControl, 2);
         headerPanel.Children.Add(_cardHeaderControl);
 
         _cardControl.Header = headerPanel;

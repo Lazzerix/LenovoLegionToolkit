@@ -106,7 +106,7 @@ public class AutomationPipelineControl : UserControl
     public event EventHandler? OnChanged;
     public event EventHandler? OnDelete;
 
-    private readonly DispatcherTimer _longPressTimer;
+
 
     public Task InitializedTask => _initializedTaskCompletionSource.Task;
 
@@ -115,12 +115,7 @@ public class AutomationPipelineControl : UserControl
         AutomationPipeline = automationPipeline;
         _supportedAutomationSteps = supportedAutomationSteps;
 
-        _longPressTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(100)
-        };
 
-        _longPressTimer.Tick += LongPressTimer_Tick;
 
         Initialized += AutomationPipelineControl_Initialized;
         OnChanged += (_, _) => RefreshValidationWarnings();
@@ -281,22 +276,9 @@ public class AutomationPipelineControl : UserControl
         _cardHeaderControl.Accessory = GenerateAccessory();
         _cardHeaderControl.SubtitleToolTip = _cardHeaderControl.Subtitle;
         _cardExpander.Content = _stackPanel;
+        _cardExpander.Header = _cardHeaderControl;
 
         Content = _cardExpander;
-
-        _cardHeaderControl.PreviewMouseLeftButtonDown += (s, e) =>
-        {
-            _longPressTimer.Start();
-        };
-
-        _cardHeaderControl.PreviewMouseLeftButtonUp += (s, e) =>
-        {
-            if (_longPressTimer.IsEnabled)
-            {
-                _longPressTimer.Stop();
-                _cardExpander.IsExpanded = !_cardExpander.IsExpanded;
-            }
-        };
 
         AllowDrop = true;
         Drop += HandlePipelineDrop;
@@ -306,19 +288,7 @@ public class AutomationPipelineControl : UserControl
         _initializedTaskCompletionSource.TrySetResult();
     }
 
-    private void LongPressTimer_Tick(object? sender, EventArgs e)
-    {
-        _longPressTimer.Stop();
 
-        try
-        {
-            DragDrop.DoDragDrop(_cardHeaderControl, new DataObject("AutomationPipeline", this), DragDropEffects.Move);
-        }
-        finally
-        {
-            CleanupAdorner();
-        }
-    }
 
     private void HandlePipelineDrop(object sender, DragEventArgs e)
     {
@@ -487,35 +457,58 @@ public class AutomationPipelineControl : UserControl
         return result;
     }
 
-    private Button? GenerateAccessory()
+    private FrameworkElement GenerateAccessory()
     {
+        var accessoryPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
         var triggers = AutomationPipeline.AllTriggers
             .ToArray();
 
-        if (!AutomationPipelineTriggerConfigurationWindow.IsValid(triggers))
-            return null;
-
-        var button = new Button
+        if (AutomationPipelineTriggerConfigurationWindow.IsValid(triggers))
         {
-            Content = Resource.AutomationPipelineControl_Configure,
-            Margin = new(16, 0, 16, 0),
-            MinWidth = 120,
-        };
-        button.Click += (_, _) =>
-        {
-            var isOr = AutomationPipeline.Trigger is OrAutomationPipelineTrigger;
-            var window = new AutomationPipelineTriggerConfigurationWindow(triggers, isOr) { Owner = Window.GetWindow(this) };
-            window.OnSave += (_, e) =>
+            var button = new Button
             {
-                AutomationPipeline.Trigger = e;
-                _cardHeaderControl.Subtitle = GenerateSubtitle();
-                _cardHeaderControl.Accessory = GenerateAccessory();
-                _cardHeaderControl.SubtitleToolTip = _cardHeaderControl.Subtitle;
-                OnChanged?.Invoke(this, EventArgs.Empty);
+                Content = Resource.AutomationPipelineControl_Configure,
+                Margin = new(16, 0, 0, 0),
+                MinWidth = 120,
             };
-            window.ShowDialog();
+            button.Click += (_, _) =>
+            {
+                var isOr = AutomationPipeline.Trigger is OrAutomationPipelineTrigger;
+                var window = new AutomationPipelineTriggerConfigurationWindow(triggers, isOr) { Owner = Window.GetWindow(this) };
+                window.OnSave += (_, e) =>
+                {
+                    AutomationPipeline.Trigger = e;
+                    _cardHeaderControl.Subtitle = GenerateSubtitle();
+                    _cardHeaderControl.Accessory = GenerateAccessory();
+                    _cardHeaderControl.SubtitleToolTip = _cardHeaderControl.Subtitle;
+                    OnChanged?.Invoke(this, EventArgs.Empty);
+                };
+                window.ShowDialog();
+            };
+            accessoryPanel.Children.Add(button);
+        }
+
+        var dragHandle = new Wpf.Ui.Controls.SymbolIcon
+        {
+            Symbol = SymbolRegular.ReOrderDotsVertical24,
+            Margin = new(16, 0, 16, 0),
+            Cursor = Cursors.SizeAll,
+            Opacity = 0.5,
+            VerticalAlignment = VerticalAlignment.Center,
         };
-        return button;
+        dragHandle.MouseLeftButtonDown += (_, e) =>
+        {
+            if (e.ClickCount > 1) return;
+            DragDrop.DoDragDrop(dragHandle, new DataObject("AutomationPipeline", this), DragDropEffects.Move);
+        };
+        accessoryPanel.Children.Add(dragHandle);
+
+        return accessoryPanel;
     }
 
     public void DetachStep(AbstractAutomationStepControl step)
