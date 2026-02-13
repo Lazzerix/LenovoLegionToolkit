@@ -35,6 +35,11 @@ public class GPUController
     {
         try
         {
+            if (AppFlags.Instance.Debug)
+            {
+                return true;
+            }
+
             NVAPI.Initialize();
             PhysicalGPU? gpu = NVAPI.GetGPU();
             return gpu is not null;
@@ -197,8 +202,6 @@ public class GPUController
         if (gpu is null)
         {
             _state = GPUState.NvidiaGpuNotFound;
-
-            Log.Instance.Trace($"GPU present [state={_state}, processes.Count={_processes.Count}, gpuInstanceId={_gpuInstanceId}]");
 
             return;
         }
