@@ -89,6 +89,98 @@
                         Visibility="Hidden" />
                 </StackPanel>
             </custom:CardControl>
+            <custom:CardControl Margin="0,0,0,8">
+                <custom:CardControl.Header>
+                    <controls:CardHeaderControl Title="{x:Static resources:Resource.AutomationPage_Game_Detection_Title}" Subtitle="{x:Static resources:Resource.AutomationPage_Game_Detection_Sub_Title}" />
+                </custom:CardControl.Header>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                        <ComboBox x:Name="_detectionModeComboBox" SelectionChanged="DetectionModeComboBox_SelectionChanged">
+                            <ComboBoxItem Content="{x:Static resources:Resource.AutomationPage_Game_Detection_Method_Auto}" Tag="Auto" />
+                            <ComboBoxItem Content="{x:Static resources:Resource.AutomationPage_Game_Detection_Method_Discrete_GPU}" Tag="Gpu" />
+                            <ComboBoxItem Content="{x:Static resources:Resource.AutomationPage_Game_Detection_Method_List}" Tag="Store" />
+                            <ComboBoxItem Content="{x:Static resources:Resource.AutomationPage_Game_Detection_Method_Game_Mode}" Tag="GameMode" />
+                        </ComboBox>
+                    </StackPanel>
+                    <wpfui:Button
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="{x:Static resources:Resource.SettingsPage_ExcludeProcesses_Title}"
+                        Click="ExcludeProcesses_Click"
+                        FontSize="20"
+                        Icon="Settings24"
+                        ToolTip="{x:Static resources:Resource.SettingsPage_ExcludeProcesses_Title}" />
+                </Grid>
+            </custom:CardControl>
+            <custom:CardControl Margin="0,0,0,8" Icon="Window24">
+                <custom:CardControl.Header>
+                    <controls:CardHeaderControl Title="{x:Static resources:Resource.ArgumentWindow_Edit_Title}" Subtitle="{x:Static resources:Resource.ArgumentWindow_Edit_Message}" />
+                </custom:CardControl.Header>
+                <StackPanel Orientation="Horizontal">
+                    <Button
+                        x:Name="_argumentWindow"
+                        Width="130"
+                        Height="35"
+                        Margin="5,0,8,0"
+                        VerticalAlignment="Center"
+                        Click="ArgumentWindowButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock VerticalAlignment="Center" Text="{x:Static resources:Resource.ArgumentWindow_Edit_Title}" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </custom:CardControl>
+            <custom:CardControl Margin="0,0,0,8" Icon="Board24">
+                <custom:CardControl.Header>
+                    <controls:CardHeaderControl Title="{x:Static resources:Resource.SettingsPage_FloatingGadgets_Title}" Subtitle="{x:Static resources:Resource.SettingsPage_FloatingGadgets_Message}" />
+                </custom:CardControl.Header>
+                <StackPanel Orientation="Horizontal">
+                    <wpfui:NumberBox
+                        x:Name="_floatingGadgetsInterval"
+                        Width="60"
+                        Margin="5,0,8,0"
+                        VerticalAlignment="Center"
+                        Maximum="5"
+                        Minimum="1"
+                        SpinButtonPlacementMode="Compact"
+                        ToolTip="{x:Static resources:Resource.SettingsPage_FloatingGadgets_Tooltip}"
+                        ValueChanged="FloatingGadgetsInput_ValueChanged"
+                        Visibility="Hidden"
+                        Value="1" />
+                    <ComboBox
+                        x:Name="_floatingGadgetsStyleComboBox"
+                        Width="100"
+                        Margin="5,0,8,0"
+                        VerticalAlignment="Center"
+                        SelectionChanged="StyleComboBox_SelectionChanged"
+                        Visibility="Hidden">
+                        <ComboBoxItem Content="{x:Static resources:Resource.Default}" Tag="Default" />
+                        <ComboBoxItem Content="{x:Static resources:Resource.FloatingGadget_Style_Simple}" Tag="Simple" />
+                    </ComboBox>
+                    <Button
+                        x:Name="_customButton"
+                        Width="100"
+                        Height="35"
+                        Margin="5,0,8,0"
+                        VerticalAlignment="Center"
+                        Click="CustomButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock VerticalAlignment="Center" Text="{x:Static resources:Resource.DashboardPage_Customize}" />
+                        </StackPanel>
+                    </Button>
+                    <wpfui:ToggleSwitch
+                        x:Name="_floatingGadgetsToggle"
+                        Margin="5,0,0,8"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="{x:Static resources:Resource.SettingsPage_FloatingGadgets_Title}"
+                        Click="FloatingGadgets_Click"
+                        Visibility="Hidden" />
+                </StackPanel>
+            </custom:CardControl>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

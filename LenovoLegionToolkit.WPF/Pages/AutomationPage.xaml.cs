@@ -17,7 +17,6 @@ using LenovoLegionToolkit.WPF.Extensions;
 using LenovoLegionToolkit.WPF.Resources;
 using LenovoLegionToolkit.WPF.Utils;
 using LenovoLegionToolkit.WPF.Windows.Automation;
-using LenovoLegionToolkit.WPF.Windows.Settings;
 using LenovoLegionToolkit.WPF.Windows.Utils;
 using Wpf.Ui.Common;
 using MenuItem = Wpf.Ui.Controls.MenuItem;
@@ -43,11 +42,6 @@ public partial class AutomationPage
         await RefreshAsync();
     }
 
-    private void ExcludeProcesses_Click(object sender, RoutedEventArgs e)
-    {
-        var window = new ExcludeProcessesWindow { Owner = Window.GetWindow(this) };
-        window.ShowDialog();
-    }
 
     private async void EnableAutomaticPipelinesToggle_Click(object sender, RoutedEventArgs e)
     {
@@ -116,37 +110,6 @@ public partial class AutomationPage
         await SnackbarHelper.ShowAsync(Resource.AutomationPage_Reverted_Title, Resource.AutomationPage_Reverted_Message);
     }
 
-    private void DetectionModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_detectionModeComboBox.SelectedItem is not ComboBoxItem item || item.Tag is not string tag)
-            return;
-
-        var (useGpu, useStore, useGameMode) = tag switch
-        {
-            "Auto" => (true, true, true),
-            "Gpu" => (true, false, false),
-            "Store" => (false, true, false),
-            "GameMode" => (false, false, true),
-            _ => (true, true, true)
-        };
-
-        _settings.Store.GameDetection.UseDiscreteGPU = useGpu;
-        _settings.Store.GameDetection.UseGameConfigStore = useStore;
-        _settings.Store.GameDetection.UseEffectiveGameMode = useGameMode;
-        _settings.SynchronizeStore();
-
-        Task.Run(async () =>
-        {
-            try
-            {
-                await _automationProcessor.RestartListenersAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Log.Instance.Trace($"Failed to restart listeners after detection mode change.", ex);
-            }
-        });
-    }
 
     private async Task RefreshAsync()
     {
@@ -159,23 +122,7 @@ public partial class AutomationPage
 
         _enableAutomaticPipelinesToggle.IsChecked = _automationProcessor.IsEnabled;
 
-        ComboBoxItem? selectedItem;
-        var useGpu = _settings.Store.GameDetection.UseDiscreteGPU;
-        var useStore = _settings.Store.GameDetection.UseGameConfigStore;
-        var useGameMode = _settings.Store.GameDetection.UseEffectiveGameMode;
 
-        if (useGpu && useStore && useGameMode)
-            selectedItem = _detectionModeComboBox.Items[0] as ComboBoxItem;
-        else if (useGpu && !useStore && !useGameMode)
-            selectedItem = _detectionModeComboBox.Items[1] as ComboBoxItem;
-        else if (!useGpu && useStore && !useGameMode)
-            selectedItem = _detectionModeComboBox.Items[2] as ComboBoxItem;
-        else if (!useGpu && !useStore && useGameMode)
-            selectedItem = _detectionModeComboBox.Items[3] as ComboBoxItem;
-        else
-            selectedItem = _detectionModeComboBox.Items[0] as ComboBoxItem;
-
-        _detectionModeComboBox.SelectedItem = selectedItem;
 
         _automaticPipelinesStackPanel.Children.Clear();
         _manualPipelinesStackPanel.Children.Clear();

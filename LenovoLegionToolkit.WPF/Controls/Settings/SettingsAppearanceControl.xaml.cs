@@ -11,7 +11,6 @@ using LenovoLegionToolkit.Lib.Utils;
 using LenovoLegionToolkit.WPF.Extensions;
 using LenovoLegionToolkit.WPF.Resources;
 using LenovoLegionToolkit.WPF.Utils;
-using LenovoLegionToolkit.WPF.Windows.Settings;
 using LenovoLegionToolkit.WPF.Windows.Utils;
 using Microsoft.Win32;
 
@@ -197,13 +196,5 @@ public partial class SettingsAppearanceControl
 
         _settings.Store.BackGroundImageFilePath = string.Empty;
         _settings.SynchronizeStore();
-    }
-
-    private void ArgumentWindowButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_isRefreshing)
-            return;
-
-        ArgumentWindow.ShowInstance();
     }
 }
