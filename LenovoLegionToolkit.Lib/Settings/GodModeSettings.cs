@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using static LenovoLegionToolkit.Lib.Settings.GodModeSettings;
 
 namespace LenovoLegionToolkit.Lib.Settings;
 
 
-public class GodModeSettings() : AbstractSettings<GodModeSettings.GodModeSettingsStore>("godmode.json")
+public class GodModeSettings() : AbstractSettings<GodModeSettingsStore>("godmode.json")
 {
     public class GodModeSettingsStore
     {

@@ -872,4 +872,20 @@ public enum WinKeyState
     On
 }
 
+public enum StatusCode
+{
+    Update = 0,
+    NoUpdate = 1,
+    ForceUpdate = 2,
+    Null = 255,
+}
+
+public enum UpdateMethod
+{
+    [Display(ResourceType = typeof(Resource), Name = "UpdateMethod_Github")]
+    Github,
+    [Display(ResourceType = typeof(Resource), Name = "UpdateMethod_Server")]
+    Server,
+}
+
 public enum WinKeyChanged;

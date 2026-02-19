@@ -43,7 +43,13 @@ public partial class UpdateWindow : IProgress<float>
         }
         else
         {
-            _markdownViewer.Markdown = string.Empty;
+            if (_updateChecker.UpdateFromServer != null)
+            {
+                if (_updateChecker.UpdateFromServer?.Description.Length > 0)
+                {
+                    _markdownViewer.Markdown = _updateChecker.UpdateFromServer?.Description;
+                }
+            }
         }
 
         _downloadButton.IsEnabled = true;

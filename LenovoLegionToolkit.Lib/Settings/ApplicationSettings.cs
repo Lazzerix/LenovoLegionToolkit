@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using static LenovoLegionToolkit.Lib.Settings.ApplicationSettings;
 
 namespace LenovoLegionToolkit.Lib.Settings;
 
-public class ApplicationSettings : AbstractSettings<ApplicationSettings.ApplicationSettingsStore>
+public class ApplicationSettings : AbstractSettings<ApplicationSettingsStore>
 {
     public class Notifications
     {
@@ -50,7 +51,6 @@ public class ApplicationSettings : AbstractSettings<ApplicationSettings.Applicat
         public bool SynchronizeBrightnessToAllPowerPlans { get; set; }
         public ModifierKey SmartFnLockFlags { get; set; }
         public bool ResetBatteryOnSinceTimerOnReboot { get; set; }
-        public UpdateChannel UpdateChannel { get; set; } = UpdateChannel.Stable;
         public bool UseNewSensorDashboard { get; set; }
         public bool LockWindowSize { get; set; }
         public bool EnableLogging { get; set; }

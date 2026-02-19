@@ -292,8 +292,8 @@ public partial class MainWindow
 
     public void CheckForUpdates(bool manualCheck = false)
     {
-        UpdateCheckSettings _updateCheckSettings = IoCContainer.Resolve<UpdateCheckSettings>();
-        if (_updateCheckSettings.Store.UpdateCheckFrequency != UpdateCheckFrequency.Never || manualCheck)
+        UpdateSettings _updateSettings = IoCContainer.Resolve<UpdateSettings>();
+        if (_updateSettings.Store.UpdateCheckFrequency != UpdateCheckFrequency.Never || manualCheck)
         {
             Task.Run(() => _updateChecker.CheckAsync(manualCheck))
                         .ContinueWith(async updatesAvailable =>

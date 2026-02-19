@@ -610,4 +610,10 @@
   <data name="Automation_Warning_Startup" xml:space="preserve">
     <value>Warning: For safety, these steps will be skipped on startup: {0}. All other steps will execute normally.</value>
   </data>
+  <data name="UpdateMethod_Server" xml:space="preserve">
+    <value>Server</value>
+  </data>
+  <data name="UpdateMethod_Github" xml:space="preserve">
+    <value>Github</value>
+  </data>
 </root>

@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
+using static LenovoLegionToolkit.Lib.Settings.PackageDownloaderSettings;
 
 namespace LenovoLegionToolkit.Lib.Settings;
 
-public class PackageDownloaderSettings()
-    : AbstractSettings<PackageDownloaderSettings.PackageDownloaderSettingsStore>("package_downloader.json")
+public class PackageDownloaderSettings() : AbstractSettings<PackageDownloaderSettingsStore>("package_downloader.json")
 {
     public class PackageDownloaderSettingsStore
     {

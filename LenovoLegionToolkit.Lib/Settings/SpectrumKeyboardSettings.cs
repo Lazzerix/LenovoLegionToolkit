@@ -1,7 +1,8 @@
-﻿namespace LenovoLegionToolkit.Lib.Settings;
+﻿using static LenovoLegionToolkit.Lib.Settings.SpectrumKeyboardSettings;
 
-public class SpectrumKeyboardSettings()
-    : AbstractSettings<SpectrumKeyboardSettings.SpectrumKeyboardSettingsStore>("spectrum_keyboard.json")
+namespace LenovoLegionToolkit.Lib.Settings;
+
+public class SpectrumKeyboardSettings() : AbstractSettings<SpectrumKeyboardSettingsStore>("spectrum_keyboard.json")
 {
     public class SpectrumKeyboardSettingsStore
     {

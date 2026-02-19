@@ -1,8 +1,9 @@
 ﻿using System.Collections.Generic;
+using static LenovoLegionToolkit.Lib.Settings.RGBKeyboardSettings;
 
 namespace LenovoLegionToolkit.Lib.Settings;
 
-public class RGBKeyboardSettings() : AbstractSettings<RGBKeyboardSettings.RGBKeyboardSettingsStore>("rgb_keyboard.json")
+public class RGBKeyboardSettings() : AbstractSettings<RGBKeyboardSettingsStore>("rgb_keyboard.json")
 {
     public class RGBKeyboardSettingsStore
     {

@@ -17,7 +17,7 @@ public partial class SettingsUpdateControl
 {
     private readonly ApplicationSettings _settings = IoCContainer.Resolve<ApplicationSettings>();
     private readonly UpdateChecker _updateChecker = IoCContainer.Resolve<UpdateChecker>();
-    private readonly UpdateCheckSettings _updateCheckSettings = IoCContainer.Resolve<UpdateCheckSettings>();
+    private readonly UpdateSettings _updateSettings = IoCContainer.Resolve<UpdateSettings>();
 
     private bool _isRefreshing;
 
@@ -35,14 +35,17 @@ public partial class SettingsUpdateControl
             _checkUpdatesCard.Visibility = Visibility.Collapsed;
             _updateCheckFrequencyCard.Visibility = Visibility.Collapsed;
             _updateChannelCard.Visibility = Visibility.Collapsed;
+            _updateMethodCard.Visibility = Visibility.Collapsed;
         }
         else
         {
             _checkUpdatesButton.Visibility = Visibility.Visible;
             _updateCheckFrequencyComboBox.Visibility = Visibility.Visible;
-            _updateCheckFrequencyComboBox.SetItems(Enum.GetValues<UpdateCheckFrequency>(), _updateCheckSettings.Store.UpdateCheckFrequency, t => t.GetDisplayName());
-            __updateChannelComboBox.Visibility = Visibility.Visible;
-            __updateChannelComboBox.SetItems(Enum.GetValues<UpdateChannel>(), _settings.Store.UpdateChannel, t => t.GetDisplayName());
+            _updateCheckFrequencyComboBox.SetItems(Enum.GetValues<UpdateCheckFrequency>(), _updateSettings.Store.UpdateCheckFrequency, t => t.GetDisplayName());
+            _updateMethodComboBox.Visibility = Visibility.Visible;
+            _updateMethodComboBox.SetItems(Enum.GetValues<UpdateMethod>(), _updateSettings.Store.UpdateMethod, t => t.GetDisplayName());
+            _updateChannelComboBox.Visibility = Visibility.Visible;
+            _updateChannelComboBox.SetItems(Enum.GetValues<UpdateChannel>(), _updateSettings.Store.UpdateChannel, t => t.GetDisplayName());
         }
 
         _isRefreshing = false;
@@ -67,10 +70,22 @@ public partial class SettingsUpdateControl
         if (_isRefreshing)
             return;
 
-        if (!__updateChannelComboBox.TryGetSelectedItem(out UpdateChannel updateChannel))
+        if (!_updateChannelComboBox.TryGetSelectedItem(out UpdateChannel updateChannel))
             return;
 
-        _settings.Store.UpdateChannel = updateChannel;
+        _updateSettings.Store.UpdateChannel = updateChannel;
+        _settings.SynchronizeStore();
+    }
+
+    private void UpdateMethodComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isRefreshing)
+            return;
+
+        if (!_updateMethodComboBox.TryGetSelectedItem(out UpdateMethod updateMethod))
+            return;
+
+        _updateSettings.Store.UpdateMethod = updateMethod;
         _settings.SynchronizeStore();
     }
 
@@ -82,8 +97,8 @@ public partial class SettingsUpdateControl
         if (!_updateCheckFrequencyComboBox.TryGetSelectedItem(out UpdateCheckFrequency frequency))
             return;
 
-        _updateCheckSettings.Store.UpdateCheckFrequency = frequency;
-        _updateCheckSettings.SynchronizeStore();
+        _updateSettings.Store.UpdateCheckFrequency = frequency;
+        _updateSettings.SynchronizeStore();
         _updateChecker.UpdateMinimumTimeSpanForRefresh();
     }
 }

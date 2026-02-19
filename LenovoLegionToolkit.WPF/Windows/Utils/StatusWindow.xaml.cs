@@ -38,7 +38,7 @@ public partial class StatusWindow
     private readonly GPUController _gpuController = IoCContainer.Resolve<GPUController>();
     private readonly BatteryFeature _batteryFeature = IoCContainer.Resolve<BatteryFeature>();
     private readonly UpdateChecker _updateChecker = IoCContainer.Resolve<UpdateChecker>();
-    private readonly UpdateCheckSettings _updateCheckerSettings = IoCContainer.Resolve<UpdateCheckSettings>();
+    private readonly UpdateSettings _updateSettings = IoCContainer.Resolve<UpdateSettings>();
     private readonly SensorsController _sensorsController = IoCContainer.Resolve<SensorsController>();
     private readonly SensorsGroupController _sensorsGroupController = IoCContainer.Resolve<SensorsGroupController>();
 
@@ -230,7 +230,7 @@ public partial class StatusWindow
         tasks.Add(Task.Run(async () => { try { if (_gpuController.IsSupported()) gpuStatus = await _gpuController.RefreshNowAsync().WaitAsync(token); } catch { } }, token));
         tasks.Add(Task.Run(() => { try { batteryInfo = Battery.GetBatteryInformation(); } catch { } }, token));
         tasks.Add(Task.Run(async () => { try { if (await _batteryFeature.IsSupportedAsync().WaitAsync(token)) batteryState = await _batteryFeature.GetStateAsync().WaitAsync(token); } catch { } }, token));
-        tasks.Add(Task.Run(async () => { try { if (_updateCheckerSettings.Store.UpdateCheckFrequency != UpdateCheckFrequency.Never) hasUpdate = await _updateChecker.CheckAsync(false).WaitAsync(token) is not null; } catch { } }, token));
+        tasks.Add(Task.Run(async () => { try { if (_updateSettings.Store.UpdateCheckFrequency != UpdateCheckFrequency.Never) hasUpdate = await _updateChecker.CheckAsync(false).WaitAsync(token) is not null; } catch { } }, token));
 
         await Task.WhenAll(tasks).ConfigureAwait(false);
 
