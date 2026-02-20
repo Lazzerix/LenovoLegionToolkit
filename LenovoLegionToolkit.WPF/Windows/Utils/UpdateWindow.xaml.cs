@@ -82,7 +82,7 @@ public partial class UpdateWindow : IProgress<float>
         catch (SecurityException ex)
         {
             SetDownloading(false);
-            throw new SecurityException(ex.Message);
+            throw new SecurityException(ex.Message + ex.InnerException!.Message);
         }
         catch
         {
